@@ -12,13 +12,14 @@ class QuestionsDatabase < SQLite3::Database
     end
 end
 
-class Questions
+class Question
 
     attr_accessor :id, :title, :body, :user_id
 
     def self.all
         data = QuestionsDatabase.instance.execute("SELECT * FROM questions")
-        data.map { |datum| Questions.new(datum) }
+        puts data
+        data.map { |datum| Question.new(datum) }
     end
 
     def self.find_by_id(id)
@@ -33,7 +34,7 @@ class Questions
         SQL
         return nil unless questions.size > 0
         
-        Questions.new(questions.first)
+        Question.new(questions.first)
     end
 
     def self.find_by_title(title)
@@ -47,24 +48,24 @@ class Questions
             SQL
             return nil unless titles.size > 0
             
-            Questions.new(titles.first)
+            Question.new(titles.first)
     end
 
-    # def self.find_by_name(name)
-    #     user = User.find_by_name(name)
-    #     raise "#{name} not found in database" unless user
+    def self.find_by_name(first_name, last_name)
+        user = User.find_by_name(first_name, last_name)
+        raise "#{first_name} #{last_name} not found in database" unless user
         
-    #     questions = QuestionsDatabase.instance.execute(<<-SQL user_id)
-    #                 SELECT
-    #                     *
-    #                 FROM
-    #                     questions
-    #                 WHERE
-    #                     user_id = ?
-    #             SQL
+        questions = QuestionsDatabase.instance.execute(<<-SQL, user.id)
+                SELECT
+                    *
+                FROM
+                    questions
+                WHERE
+                    user_id = ?
+            SQL
 
-    #     questions.map { |question| Question.new(question)}
-    # end
+        questions.map { |question| Question.new(question)}
+    end
 
     def initialize(options)
         @id = options['id']
@@ -125,7 +126,43 @@ end
 
 
 class Reply
+    attr_accessor :id, :body, :question_id, :user_id, :parent_replies_id
 
+    def self.all
+        data = QuestionsDatabase.instance.execute("SELECT * FROM replies")
+        data.map { |datum| Reply.new(datum) }
+    end
+
+    def self.find_by_id(id)
+
+         reply = QuestionsDatabase.instance.execute(<<-SQL, id)
+            SELECT
+                *
+            FROM
+                replies
+            WHERE
+                id = ?
+        SQL
+        return nil unless reply.size > 0
+        
+        Reply.new(reply.first)
+    end
+
+    def self.find_by_question_title(title)
+        question = Question.find_by_title(title)
+        raise "#{question_id} not found in database" unless question
+
+        questions = QuestionsDatabase.instance.execute(<<-SQL, question.id)
+            SELECT
+                *
+            FROM
+                replies
+            WHERE
+                question_id = ?
+        SQL
+        questions.map { |question| Question.new(question) }
+    end
+    
     def initialize(options)
         @id = options['id']
         @body = options['body']
@@ -138,7 +175,8 @@ end
 
 
 class QuestionLike
-
+    attr_accessor :id, :user_id, :question_id
+    
     def initialize(options)
         @id = options['id']
         @user_id = options['user_id']
