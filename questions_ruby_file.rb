@@ -177,6 +177,30 @@ end
 class QuestionLike
     attr_accessor :id, :user_id, :question_id
     
+    def self.find_likes_of_user(first_name, last_name)
+        user = User.find_by_name(first_name, last_name)
+        raise "#{first_name} #{last_name} not found in database" unless user
+
+        likes = QuestionsDatabase.instance.execute(<<-SQL, user.id)
+            SELECT
+                *
+            FROM 
+                questions
+            WHERE 
+                id = (
+                    SELECT
+                        question_id
+                    FROM
+                        question_likes
+                    WHERE
+                        user_id = ?
+                    )
+        SQL
+
+        likes.map { |like| Question.new(like)}
+    end
+
+
     def initialize(options)
         @id = options['id']
         @user_id = options['user_id']
@@ -188,6 +212,26 @@ end
 
 
 class QuestionFollows
+
+    def self.find_followers_count(title)
+
+        count = QuestionsDatabase.instance.execute(<<-SQL, title)
+            SELECT 
+                COUNT(user_id)
+            FROM
+                question_follows
+            WHERE
+                question_id = (
+                    SELECT
+                        id
+                    FROM 
+                        questions
+                    WHERE
+                        title = ?
+                    )
+        SQL
+        count.first.values
+    end
 
     def initialize(options)
         @id = options['id']
