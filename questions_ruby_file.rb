@@ -74,16 +74,18 @@ class Question
         @user_id = options['user_id']
     end
 
+    def author
+        User.find_by_id(self.user_id)
+    end
+
+    def replies
+        Reply.find_by_question_id(self.id)
+    end
+
 end
 
 
 class User
-
-    def initialize(options)
-        @id = options['id']
-        @first_name = options['first_name']
-        @last_name = options['last_name']
-    end
 
     attr_accessor :id, :first_name, :last_name
 
@@ -122,6 +124,21 @@ class User
     end
 
 
+    def initialize(options)
+        @id = options['id']
+        @first_name = options['first_name']
+        @last_name = options['last_name']
+    end
+
+    def authored_questions
+        Question.find_by_name(self.first_name, self.last_name)
+    end
+
+    def authored_replies
+        Reply.find_by_user_id(self.id)
+    end
+
+
 end
 
 
@@ -134,8 +151,7 @@ class Reply
     end
 
     def self.find_by_id(id)
-
-         reply = QuestionsDatabase.instance.execute(<<-SQL, id)
+        reply = QuestionsDatabase.instance.execute(<<-SQL, id)
             SELECT
                 *
             FROM
@@ -144,13 +160,30 @@ class Reply
                 id = ?
         SQL
         return nil unless reply.size > 0
+
+        Reply.new(reply.first)
+    end
+
+    def self.find_by_user_id(id)
+        user = User.find_by_id(id)
+        raise "#{id} not in data base" unless user
+
+        reply = QuestionsDatabase.instance.execute(<<-SQL, id)
+            SELECT
+                *
+            FROM
+                replies
+            WHERE
+                user_id = ?
+        SQL
+        return nil unless reply.size > 0
         
         Reply.new(reply.first)
     end
 
-    def self.find_by_question_title(title)
-        question = Question.find_by_title(title)
-        raise "#{question_id} not found in database" unless question
+    def self.find_by_question_id(id)
+        question = Question.find_by_id(id)
+        raise "#{id} not found in database" unless question
 
         questions = QuestionsDatabase.instance.execute(<<-SQL, question.id)
             SELECT
@@ -171,12 +204,27 @@ class Reply
         @parent_replies_id = options['parent_replies_id']
     end
 
+    def author
+        User.find_by_id(self.user_id)
+    end
+
+    def question
+        Question.find_by_id(self.question_id)
+    end
+
+    def parent_reply
+        Reply.find_by_id(self.parent_replies_id)
+    end
+
+    def child_replies
+        
+    end
 end
 
 
 class QuestionLike
     attr_accessor :id, :user_id, :question_id
-    
+
     def self.find_likes_of_user(first_name, last_name)
         user = User.find_by_name(first_name, last_name)
         raise "#{first_name} #{last_name} not found in database" unless user
